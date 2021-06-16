@@ -1,0 +1,7 @@
+---
+
+- hosts: "all"
+  become: "yes"
+  roles:
+    - role: hello_webservice
+      hello_pages: "{{ lookup('file', 'paths').split('\n') }}"

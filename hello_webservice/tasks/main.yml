@@ -1,0 +1,90 @@
+---
+
+
+- name: "Install required packages"
+  apt:
+    pkg:
+      - nginx
+      - python3
+      - python-virtualenv
+      - tmux
+    state: "present"
+    update_cache: "yes"
+
+- name: "Create service user"
+  ansible.builtin.user:
+    name: "{{ app_run_as_user }}"
+    home: "{{ app_root_path }}"
+    system: yes
+    create_home: "yes"
+
+- name: "Save the deploy key"
+  ansible.builtin.copy:
+    src: "deploy_key"
+    dest: "{{ deploy_key_file }}"
+    mode: "0400"
+
+- name: "Clone the application code"
+  ansible.builtin.git:
+    repo: "{{ app_repository }}"
+    dest: "{{ app_dest_path }}"
+    version: "{{ app_version }}"
+    accept_hostkey: yes
+    key_file: "{{ deploy_key_file }}"
+  notify:
+    - "Restart webapp"
+
+- name: "Install python dependencies"
+  ansible.builtin.pip:
+    requirements: "{{ requirements_path }}"
+    virtualenv: "{{ app_virtualenv_path }}"
+    virtualenv_python: "python3"
+
+- name: "Save page names"
+  ansible.builtin.copy:
+     content: "{{ hello_pages }}"
+     dest: "{{ app_pages_path }}"
+
+- name: "Configure service"
+  ansible.builtin.template:
+    src: "example_app.service.jinja2"
+    dest: "/etc/systemd/system/{{ app_service_name }}.service"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: "Enable webapp service"
+  ansible.builtin.systemd:
+    name: "{{ app_service_name }}"
+    state: started
+    daemon_reload: yes
+    enabled: yes
+  notify:
+    - "Restart webapp"
+
+- name: "Configure NGINX"
+  ansible.builtin.template:
+    src: "nginx.conf.jinja2"
+    dest: "/etc/nginx/sites-available/{{ app_service_name }}"
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - "Reload nginx"
+
+- name: "Disable nginx default site"
+  ansible.builtin.file:
+    path: "/etc/nginx/sites-enabled/default"
+    state: "absent"
+  notify:
+    - "Reload nginx"
+
+- name: "Enable nginx web app site"
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/{{ app_service_name }}"
+    dest: "/etc/nginx/sites-enabled/{{ app_service_name }}"
+    owner: root
+    group: root
+    state: link
+  notify:
+    - "Reload nginx"

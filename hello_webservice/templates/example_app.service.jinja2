@@ -1,0 +1,13 @@
+[Unit]
+Description=MDS Webapp
+After=network.target
+
+[Service]
+Environment="PATH={{ app_virtualenv_bin_path }}"
+WorkingDirectory={{ app_code_path }}
+ExecStart={{ app_virtualenv_bin_path }}/gunicorn --workers {{ app_num_workers }} --bind {{ app_socket }} {{ app_main }}
+User={{ app_run_as_user }}
+Group={{ app_run_as_user }}
+
+[Install]
+WantedBy=multi-user.target

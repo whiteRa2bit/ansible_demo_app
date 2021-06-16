@@ -1,0 +1,12 @@
+---
+
+- name: "Restart webapp"
+  ansible.builtin.systemd:
+    name: "{{ app_service_name }}"
+    state: restarted
+    daemon_reload: yes
+
+- name: "Reload nginx"
+  ansible.builtin.service:
+    name: "nginx"
+    state: reloaded
